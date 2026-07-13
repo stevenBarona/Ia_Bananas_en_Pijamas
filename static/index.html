@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clasificación de Banano</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --accent:#00d4ff;
+      --accent-2:#7b61ff;
+      --muted:#9aa4b2;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--bg),#071022);color:#e6eef6;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+    .container{width:100%;max-width:980px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    header{display:flex;gap:16px;align-items:center}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:20px}
+
+    .panel{background:var(--card);padding:16px;border-radius:10px}
+    .card{background:linear-gradient(90deg,var(--glass),transparent);padding:14px;border-radius:10px;margin-bottom:12px;transition:transform .22s ease,box-shadow .22s ease}
+    .card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(0,0,0,0.6)}
+    .preview{width:100%;height:320px;object-fit:contain;border-radius:8px;background:linear-gradient(180deg,#071422,transparent);display:block}
+
+    .controls{display:flex;gap:10px;align-items:center;margin-top:12px}
+    input[type=file]{display:block}
+    button{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#02122b;padding:10px 16px;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:0 8px 18px rgba(123,97,255,0.12);transition:transform .12s ease}
+    button:active{transform:translateY(1px) scale(.998)}
+
+    .result{margin-top:14px;font-weight:700;color:#dff7ff}
+    .explain{color:var(--muted);margin-top:8px}
+
+    .classes{display:flex;gap:10px;margin-top:12px}
+    .badge{flex:1;padding:12px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);}
+    .badge h4{margin:0 0 6px 0}
+    .badge p{margin:0;color:var(--muted);font-size:13px}
+
+    /* Loading overlay */
+    .overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.75),rgba(2,6,23,0.9));display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);z-index:60;opacity:0;pointer-events:none;transition:opacity .18s ease}
+    .overlay.show{opacity:1;pointer-events:auto}
+    .loaderCard{background:linear-gradient(90deg,#021228,#071428);padding:28px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+    .spinner{width:64px;height:64px;border-radius:50%;border:6px solid rgba(255,255,255,0.06);border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Result badge */
+    .badge-good{background:linear-gradient(90deg,#bff6d6,#74f09d);}
+    .badge-bad{background:linear-gradient(90deg,#ffd6c6,#ff8a66);}
+
+    /* simple confetti */
+    .confetti{position:fixed;left:50%;top:40%;width:8px;height:8px;border-radius:2px;opacity:0;transform:translate(-50%,-50%) scale(.6);animation:confetti-fall 1200ms ease-out forwards}
+    @keyframes confetti-fall{0%{opacity:1;transform:translate(-50%,-50%) translateY(-20px) scale(.6)}100%{opacity:1;transform:translate(-50%,-50%) translateY(160px) rotate(360deg) scale(1)}}
+
+    /* Camera modal */
+    .cameraOverlay{position:fixed;inset:0;background:rgba(2,6,23,0.85);display:flex;align-items:center;justify-content:center;z-index:80;opacity:0;pointer-events:none;transition:opacity .16s ease}
+    .cameraOverlay.show{opacity:1;pointer-events:auto}
+    .cameraCard{width:92%;max-width:520px;background:#071428;padding:12px;border-radius:12px;display:flex;flex-direction:column;gap:8px;align-items:center}
+    video#cameraVideo{width:100%;height:auto;border-radius:8px;background:#000}
+    .cameraControls{display:flex;gap:8px;margin-top:6px}
+
+    /* Responsive */
+    @media (max-width:880px){.grid{grid-template-columns:1fr;}.preview{height:260px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Clasificación de Banano</h1>
+        <p class="lead">Sube una imagen y deja que la IA determine si el banano es <strong>Premium</strong> o <strong>Rechazo</strong>.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="panel">
+          <div class="card">
+            <img id="preview" class="preview" src="" alt="vista previa" />
+          </div>
+
+          <div class="controls">
+            <input id="imageInput" type="file" accept="image/*" />
+            <button id="cameraBtn" style="background:#ffffff22;color:#dff7ff;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;margin-left:8px">Tomar foto</button>
+            <button id="sendBtn">Analizar imagen</button>
+          </div>
+
+          <div id="output" class="result"></div>
+            <div id="resultExtra" style="margin-top:12px;display:none">
+            <div id="resultBadge" style="display:inline-block;padding:10px 14px;border-radius:10px;font-weight:800;color:#02122b;transform:translateY(-6px);opacity:0;transition:all .32s ease"></div>
+            <div style="height:12px;margin-top:12px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden">
+              <div id="confidenceBar" style="height:12px;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .9s cubic-bezier(.2,.9,.2,1)"></div>
+            </div>
+            <div id="explanation" class="explain" style="margin-top:10px;opacity:0;transition:opacity .28s ease"></div>
+          </div>
+          <div id="probs" style="margin-top:10px;display:none"></div>
+          <div style="margin-top:10px">
+            <button id="explainBtn" style="background:#ffffff22;color:#dff7ff;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);cursor:pointer">Mostrar mapa de atención</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>¿Por qué Premium?</h3>
+          <p class="explain">Un banano etiquetado como <strong>Premium</strong> presenta la curvatura adecuada, longitud estándar y ausencia de malformaciones severas. Estos criterios aseguran que cumple normas de exportación y apariencia comercial.</p>
+        </div>
+
+        <div class="card">
+          <h3>¿Por qué Rechazo?</h3>
+          <p class="explain">La etiqueta <strong>Rechazo</strong> indica presencia de daños físicos, calibre insuficiente, dedos gemelos o cortes que impiden su comercialización internacional. Estos frutos se redirigen a consumo local o descarte.</p>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <h3>Detalle de clases</h3>
+          <div class="classes">
+            <div class="badge">
+              <h4>Premium</h4>
+              <p>Curvatura y calibre adecuados. Sin roturas ni deformaciones.</p>
+            </div>
+            <div class="badge">
+              <h4>Rechazo</h4>
+              <p>Malformaciones, daños o calibre menor al estándar.</p>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;color:var(--muted);font-size:14px">Consejo: intenta subir una imagen clara con el fruto centrado para mejores resultados.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="loaderCard">
+      <div class="spinner"></div>
+      <div style="text-align:center">
+        <div style="font-weight:700">Analizando la imagen con IA</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:6px">Esto puede tardar unos segundos según tu ordenador.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- camera modal -->
+  <div id="cameraOverlay" class="cameraOverlay">
+    <div class="cameraCard">
+      <video id="cameraVideo" autoplay playsinline></video>
+      <div class="cameraControls">
+        <button id="captureBtn" style="background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#02122b;padding:8px 12px;border-radius:8px;font-weight:700;">Capturar</button>
+        <button id="flipBtn" style="background:#ffffff22;color:#dff7ff;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);">Cambiar cámara</button>
+        <button id="closeCamBtn" style="background:#ff6b6b;color:#02122b;padding:8px 12px;border-radius:8px;border:0">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const sendBtn = document.getElementById('sendBtn');
+    const output = document.getElementById('output');
+    const explanation = document.getElementById('explanation');
+    const overlay = document.getElementById('overlay');
+    let selectedFile = null;
+
+    input.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      selectedFile = f;
+      preview.src = URL.createObjectURL(f);
+      output.textContent = '';
+      explanation.textContent = '';
+    });
+
+    function showOverlay(show){
+      if(show) overlay.classList.add('show'); else overlay.classList.remove('show');
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      if (!selectedFile) { output.textContent = 'Selecciona una imagen primero'; return; }
+      output.textContent = '';
+      explanation.textContent = '';
+      showOverlay(true);
+      const start = Date.now();
+
+      const form = new FormData();
+      form.append('image', selectedFile);
+
+      try {
+        const res = await fetch('/predict', { method: 'POST', body: form });
+        const data = await res.json();
+
+        const finalize = () => {
+            if (res.ok) {
+            output.innerHTML = `Clasificación: <b>${data.clasificacion}</b>`;
+            const conf = Number(data.confianza) || 0;
+            const quality = data.quality || (conf >= 50 ? 'Premium' : 'Rechazo');
+            const quality_reason = data.quality_reason || '';
+            // mostrar badge y animar barra
+            const badge = document.getElementById('resultBadge');
+            const bar = document.getElementById('confidenceBar');
+            const resultExtra = document.getElementById('resultExtra');
+            const expl = document.getElementById('explanation');
+
+            resultExtra.style.display = 'block';
+            // set badge text and color
+            if(quality === 'Premium'){
+              badge.textContent = 'PREMIUM';
+              badge.className = 'badge-good';
+            } else {
+              badge.textContent = 'RECHAZO';
+              badge.className = 'badge-bad';
+            }
+            // animate badge entrance
+            requestAnimationFrame(() => { badge.style.opacity = 1; badge.style.transform = 'translateY(0)'; });
+
+            // animate confidence bar to percentage
+            setTimeout(() => { bar.style.width = conf + '%'; }, 80);
+
+            // choose explanation based on confidence
+            let msg = '';
+            if(quality_reason){
+              // use the explicit reason for the quality
+              msg = quality_reason;
+            }
+            // append confidence guidance
+            if(conf >= 85){
+              msg += ' — Alta confianza: la imagen muestra características claras y consistentes con esta etiqueta.';
+            } else if(conf >= 60){
+              msg += ' — Confianza media: posibles imperfecciones o encuadre parcial; se recomienda revisión manual.';
+            } else {
+              msg += ' — Baja confianza: la imagen puede estar borrosa o el fruto presenta irregularidades; repetir toma o revisión manual.';
+            }
+            expl.textContent = msg;
+            // fade-in explanation
+            setTimeout(() => { expl.style.opacity = 1; }, 400);
+
+            // celebration for very confident Premium
+            if(data.clasificacion === 'Premium' && conf >= 85){
+              spawnConfetti(18);
+            }
+
+            // show confidence percent next to output
+            output.innerHTML += ` — Confianza: <b>${conf}%</b> <br>Índice de desarrollo: <b>${data.indice_desarrollo}</b>`;
+
+            // show probability breakdown
+            const probsDiv = document.getElementById('probs');
+            probsDiv.innerHTML = '';
+            if(Array.isArray(data.probs)){
+              const labelsArr = Array.isArray(data.labels) ? data.labels : ['Premium','Rechazo'];
+              data.probs.forEach((p,i)=>{
+                const row = document.createElement('div');
+                row.style.display='flex';row.style.alignItems='center';row.style.gap='8px';row.style.marginTop='8px';
+                const label = document.createElement('div');
+                label.textContent = `${i+1}. ${labelsArr[i] || ('Clase '+(i+1))} `;
+                label.style.width='110px';label.style.color='var(--muted)';
+                const barBG = document.createElement('div');barBG.style.flex='1';barBG.style.height='10px';barBG.style.background='rgba(255,255,255,0.04)';barBG.style.borderRadius='6px';
+                const bar = document.createElement('div');bar.style.height='10px';bar.style.width='0%';bar.style.borderRadius='6px';bar.style.background='linear-gradient(90deg,var(--accent),var(--accent-2))';
+                barBG.appendChild(bar);
+                const percent = document.createElement('div');percent.textContent = Math.round(p*10000)/100 + '%';percent.style.width='64px';percent.style.textAlign='right';percent.style.color='var(--muted)';
+                row.appendChild(label);row.appendChild(barBG);row.appendChild(percent);
+                probsDiv.appendChild(row);
+                setTimeout(()=> bar.style.width = (p*100) + '%', 90);
+              });
+              probsDiv.style.display = 'block';
+            }
+          } else {
+            output.textContent = data.error || JSON.stringify(data);
+          }
+        };
+
+        const elapsed = Date.now() - start;
+        const wait = Math.max(0, 3000 - elapsed);
+        setTimeout(() => { showOverlay(false); finalize(); }, wait);
+
+      } catch (err) {
+        const elapsed = Date.now() - start;
+        const wait = Math.max(0, 3000 - elapsed);
+        setTimeout(() => { showOverlay(false); output.textContent = 'Error al conectar con la API: ' + err; }, wait);
+      }
+    });
+
+    function spawnConfetti(n){
+      for(let i=0;i<n;i++){
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        const left = 40 + Math.random()*20; // around center
+        c.style.left = left + '%';
+        c.style.background = `hsl(${Math.random()*60+10},90%,60%)`;
+        c.style.transform = `translate(-50%,-50%) rotate(${Math.random()*360}deg)`;
+        c.style.animationDuration = (900 + Math.random()*600) + 'ms';
+        document.body.appendChild(c);
+        setTimeout(()=> c.remove(), 2200);
+      }
+    }
+
+    // explain button: request Grad-CAM overlay
+    const explainBtn = document.getElementById('explainBtn');
+    explainBtn.addEventListener('click', async () => {
+      if(!selectedFile){ alert('Selecciona una imagen primero'); return; }
+      showOverlay(true);
+      const start = Date.now();
+      const form = new FormData(); form.append('image', selectedFile);
+      try{
+        const res = await fetch('/explain', { method: 'POST', body: form });
+        const blob = await res.blob();
+        const elapsed = Date.now() - start; const wait = Math.max(0, 3000 - elapsed);
+        setTimeout(()=>{
+          showOverlay(false);
+          const url = URL.createObjectURL(blob);
+          // show overlay image by replacing preview src briefly
+          const heat = document.createElement('img');
+          heat.src = url; heat.style.width='100%'; heat.style.position='absolute'; heat.style.left='0'; heat.style.top='0'; heat.style.borderRadius='8px'; heat.style.pointerEvents='none';
+          // place inside card
+          const card = preview.parentElement;
+          card.style.position='relative';
+          // remove any existing heatmap
+          const existing = document.getElementById('heatmapOverlay');
+          if(existing) existing.remove();
+          heat.id = 'heatmapOverlay';
+          card.appendChild(heat);
+          // remove after 6s
+          setTimeout(()=>{ heat.remove(); }, 6000);
+        }, wait);
+      }catch(err){ showOverlay(false); alert('Error generando explicación: '+err); }
+    });
+
+    // Camera functionality
+    const cameraBtn = document.getElementById('cameraBtn');
+    const cameraOverlayEl = document.getElementById('cameraOverlay');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const captureBtn = document.getElementById('captureBtn');
+    const closeCamBtn = document.getElementById('closeCamBtn');
+    const flipBtn = document.getElementById('flipBtn');
+    let cameraStream = null;
+    let useFacing = 'environment';
+
+    async function startCamera(){
+      try{
+        cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode: useFacing}, audio:false});
+        cameraVideo.srcObject = cameraStream;
+        cameraOverlayEl.classList.add('show');
+      }catch(err){
+        alert('No se pudo abrir la cámara: ' + err);
+      }
+    }
+
+    function stopCamera(){
+      cameraOverlayEl.classList.remove('show');
+      if(cameraStream){
+        cameraStream.getTracks().forEach(t=>t.stop());
+        cameraStream = null;
+      }
+      cameraVideo.srcObject = null;
+    }
+
+    cameraBtn.addEventListener('click', (e)=>{ startCamera(); });
+    closeCamBtn.addEventListener('click', (e)=>{ stopCamera(); });
+
+    flipBtn.addEventListener('click', (e)=>{
+      useFacing = (useFacing === 'environment') ? 'user' : 'environment';
+      if(cameraStream){ stopCamera(); startCamera(); }
+    });
+
+    captureBtn.addEventListener('click', async ()=>{
+      if(!cameraVideo || !cameraVideo.videoWidth) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = cameraVideo.videoWidth;
+      canvas.height = cameraVideo.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(async (blob)=>{
+        // create a File object to mimic input
+        const file = new File([blob], 'capture.png', {type:'image/png'});
+        selectedFile = file;
+        // show preview
+        preview.src = URL.createObjectURL(blob);
+        stopCamera();
+        // clear previous outputs
+        output.textContent = '';
+        explanation.textContent = '';
+      }, 'image/png');
+    });
+  </script>
+</body>
+</html>
