@@ -1,8 +1,5 @@
 *.log
 *.whl
-
-evidencia_entrenamiento/
 __pycache__/
 *.pyc
-
-.vscode/
+evidencia_entrenamiento/

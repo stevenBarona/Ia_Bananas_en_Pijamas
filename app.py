@@ -9,18 +9,13 @@ import uuid
 import json
 from flask import send_file
 
-MODEL_PATH = os.path.join("evidencia_entrenamiento", "inceptionv3", "inceptionv3_compatible.keras")
+MODEL_PATH = os.path.join("evidencia_entrenamiento", "inceptionv3", "inceptionv3_final.keras")
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
 
 print("Cargando modelo desde:", MODEL_PATH)
-
-
-model = tf.keras.models.load_model(
-    MODEL_PATH,
-    compile=False,
-)
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 # Determinar tamaño de entrada esperado por el modelo
 input_shape = model.input_shape
