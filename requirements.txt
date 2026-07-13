@@ -1,8 +1,6 @@
 flask
 flask-cors
-# TensorFlow: versión recomendada (CPU). Ajusta según tu entorno.
-tensorflow>=2.10.0,<2.22.0
+tensorflow==2.16.2
 pillow
 numpy
-# Opcional (útil para procesamiento/visualización avanzado sin GUI)
-opencv-python-headless
+gunicorn
