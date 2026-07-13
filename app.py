@@ -9,7 +9,12 @@ import uuid
 import json
 from flask import send_file
 
-MODEL_PATH = os.path.join("evidencia_entrenamiento", "inceptionv3", "inceptionv3_final.keras")
+CANDIDATE_MODEL_ROOT = "inceptionv3_final.keras"
+LEGACY_MODEL_PATH = os.path.join("evidencia_entrenamiento", "inceptionv3", "inceptionv3_final.keras")
+if os.path.exists(CANDIDATE_MODEL_ROOT):
+    MODEL_PATH = CANDIDATE_MODEL_ROOT
+else:
+    MODEL_PATH = LEGACY_MODEL_PATH
 
 app = Flask(__name__, static_folder="static")
 CORS(app)
